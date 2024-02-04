@@ -61,6 +61,8 @@ if(PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
   )
 endif()
 
+find_package(OpenCV REQUIRED core CONFIG)
+find_package(onnxruntime REQUIRED CONFIG)
 
 # add_subdirectory(Modules)
 add_subdirectory(Apps)

@@ -6,8 +6,7 @@ file(GLOB_RECURSE CPP_FILES "*.cpp")
 
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${HEADER_FILES} ${HPP_FILES} ${CPP_FILES})
 
-add_library(${TARGET_NAME} ${HEADER_FILES} ${CPP_FILES} ${HEADER_FILES} ${HPP_FILES})
-add_library(${PROJECT_NAME}::Primitives ALIAS ${TARGET_NAME})
+add_executable(${TARGET_NAME} ${HEADER_FILES} ${CPP_FILES} ${HEADER_FILES} ${HPP_FILES})
 
 set_target_properties(${TARGET_NAME} PROPERTIES CXX_STANDARD 17)
 set_target_properties(${TARGET_NAME} PROPERTIES FOLDER Modules)
@@ -19,6 +18,10 @@ target_compile_options(${TARGET_NAME} PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:
 # Link dependencies    
 target_link_libraries(${TARGET_NAME} 
     PUBLIC
+    opencv_core
+    opencv_imgcodecs
+    opencv_highgui
+    onnxruntime::onnxruntime
           )
 
 target_include_directories(

@@ -8,7 +8,7 @@
 
 #include "transform.h"
 
-cv::Mat NormalizeImage(cv::Mat& Image)
+cv::Mat NormalizeImage(cv::Mat Image)
 {
     cv::Mat normalizedImage = Image.clone();
 
@@ -39,7 +39,7 @@ std::vector<cv::Point2f> NormalizeKeypoints(std::vector<cv::Point2f> kpts, int h
     return normalizedKpts;
 }
 
-cv::Mat ResizeImage(const cv::Mat& Image, int size, float& scale , const std::string& fn, \
+cv::Mat ResizeImage(cv::Mat Image, int size, float& scale , const std::string& fn, \
             const std::string& interp) {
     // Resize an image to a fixed size, or according to max or min edge.
     int h = Image.rows;

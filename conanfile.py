@@ -14,6 +14,8 @@ class ModuleConan(ConanFile):
 
     def requirements(self):
         self.requires("gtest/1.14.0")
+        self.requires("opencv/4.8.1")
+        self.requires("onnxruntime/1.16.3")
         
     def imports(self):
         self.copy("*.dll", "./bin", "bin")
