@@ -1,50 +1,91 @@
-cmake_minimum_required(VERSION 3.0)
-project(LightGlue-OnnxRunner)
+cmake_minimum_required(VERSION 3.16)
 
+# 设置基础环境
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+
+# 设置默认的编译配置为 Debug，conan.cmake 需要确定你当前正在使用哪种编译配置以决定如何下载和编译三方库
+if (NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Choose the type of build." FORCE)
+    message(STATUS "No CMAKE_BUILD_TYPE selected, defaulting to ${CMAKE_BUILD_TYPE}")
+endif ()
+
+project(LightGlue VERSION 0.1 LANGUAGES CXX)
+
+include(CMakeModules/conan.cmake)
+if (CONAN_PROFILE_BUILD AND CONAN_PROFILE_HOST)
+conan_cmake_install(PATH_OR_REFERENCE .. BUILD missing
+                    SETTINGS_HOST build_type=${CMAKE_BUILD_TYPE}
+                    SETTINGS_BUILD build_type=${CMAKE_BUILD_TYPE}
+                    PROFILE_BUILD ${CONAN_PROFILE_BUILD}
+                    PROFILE_HOST ${CONAN_PROFILE_HOST})
+                    # ENV_HOST CONAN_CMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE})
+else ()
+    conan_cmake_autodetect(settings)
+    if(CONAN_REMOTE)
+      conan_cmake_install(PATH_OR_REFERENCE .. BUILD missing SETTINGS ${settings} REMOTE ${CONAN_REMOTE})
+    else()
+      conan_cmake_install(PATH_OR_REFERENCE .. BUILD missing SETTINGS ${settings})
+    endif()
+endif ()
+
+# 在 conan_cmake_install 执行后，会在 CMAKE_BINARY_DIR 目录下生成 cmake 的配置信息和 Qt 的依赖库路径信息，我们将其引入到 CMake 工程中，并调用 conan_basic_setup 来自动配置各个环境变量信息。
+include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+include(${CMAKE_BINARY_DIR}/conan_paths.cmake)
+conan_basic_setup(TARGETS)
+
+
+option(ENABLE_DOCS "Enable doxygen docs" ON)
+# just for qt
+# set(CMAKE_AUTOUIC ON)
+# set(CMAKE_AUTOMOC ON)
+# set(CMAKE_AUTORCC ON)
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+set(CMAKE_POLICY_DEFAULT_CMP0091 NEW)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_DEBUG_POSTFIX "d")
+set(CMAKE_RELEASE_POSTFIX "") 
+# your thirdparty cmake scripts
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin)
 
-if (MSVC)
-    # Set the MSVC input code encoding format to utf-8
-    set(CMAKE_C_FLAGS /source-charset:utf-8)
+include(CMakeModules/doxygen.cmake)
+include(CMakeModules/dependency-graph.cmake)
+include(CMakeModules/formatting.cmake)
+# ---- Include guards ----
+if(PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
+  message(
+    FATAL_ERROR
+      "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there."
+  )
 endif()
 
-message(STATUS "Project: LightGlue-OnnxRunner")
-message(STATUS "Root Path: ${CMAKE_SOURCE_DIR}")
 
-include(cmake/platform.cmake)  # checking platform
+# add_subdirectory(Modules)
+add_subdirectory(Apps)
+# add_subdirectory(Tests)
 
-# link third-party library onnxruntime-win-x64-1.14.1 and opencv4
-set(ONNXRUNTIME_DIR  ${CMAKE_SOURCE_DIR}/third_party/onnxruntime-win-x64-1.14.1)
-set(ONNXRUNTIME_GPU_DIR  ${CMAKE_SOURCE_DIR}/third_party/onnxruntime-win-x64-gpu-1.15.0)
+if(ENABLE_DOCS)
+  file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../Docs)
+  build_docs(PROCESS_DOXYFILE TRUE DOXYFILE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/Docs/Doxyfile.in)
+endif()
+set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT LightGlue)
 
-message(STATUS "ONNXRUNTIME_DIR Path: ${ONNXRUNTIME_DIR}")
-message(STATUS "ONNXRUNTIME_GPU_DIR Path: ${ONNXRUNTIME_GPU_DIR}")
+if(CLANG_FORMAT_EXE)
+  message(STATUS "Found clang format ............ Configuring ..............")
+  file(GLOB_RECURSE FFILES ${CMAKE_SOURCE_DIR}/Modules/*.[hc] ${CMAKE_SOURCE_DIR}/Modules/*.[hc]pp ${CMAKE_SOURCE_DIR}/Apps/*.[hc] ${CMAKE_SOURCE_DIR}/Apps/*.[hc]pp)
+  clang_format(${PROJECT_NAME}Format ${FFILES})
+  set_target_properties(${PROJECT_NAME}Format PROPERTIES FOLDER Tools)
+endif()
 
-# include_directories(${ONNXRUNTIME_DIR}/include)
-# link_directories("${ONNXRUNTIME_DIR}/lib")
-# set(ONNXRUNTIME_LIB onnxruntime onnxruntime_providers_shared)
-
-include_directories(${ONNXRUNTIME_GPU_DIR}/include)
-link_directories("${ONNXRUNTIME_GPU_DIR}/lib")
-set(ONNXRUNTIME_GPU_LIB onnxruntime onnxruntime_providers_shared onnxruntime_providers_cuda)
-
-set(OPENCV_DIR  ${CMAKE_SOURCE_DIR}/third_party/opencv480/build)
-message(STATUS "OPENCV_DIR Path: ${OPENCV_DIR}")
-include_directories(${OpenCV_INCLUDE_DIRS})
-include_directories(${OPENCV_DIR}/include)
-link_directories("${OPENCV_DIR}/x64/vc16/lib")
-set(OpenCV_LIB opencv_world480)
-
-
-# compile own file
-file(GLOB SRC_LIST 
-    ${CMAKE_SOURCE_DIR}/src/*.cpp
-)
-add_executable(main ${SRC_LIST})
-target_compile_features(main PRIVATE cxx_std_17)
-
-target_link_libraries(main ${OpenCV_LIB} ${ONNXRUNTIME_LIB} ${OpenCV_LIBS})
-target_link_libraries(main ${OpenCV_LIB} ${ONNXRUNTIME_GPU_LIB} ${OpenCV_LIBS})
-
+if(DOT_EXE)
+  message(STATUS "Found Graphviz ............ Configuring ..............")
+  file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../Docs/DependencyGraph)
+  gen_dep_graph(
+    png 
+    OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/../Docs/DependencyGraph
+    TARGET_NAME ${PROJECT_NAME}DependencyGraph
+  )
+  set_target_properties(${PROJECT_NAME}DependencyGraph PROPERTIES FOLDER Tools)
+endif()

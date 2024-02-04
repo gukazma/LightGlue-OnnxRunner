@@ -1,25 +1,9 @@
-# 3rdparty
-third_party
-
-# build
-build/
-
-# .vscode
-.vscode/
-
-# data
-data/
-
-# dynamic library/static library
-*.lib
-*.a
-*.dll
-*.so
-*.exp
-*.pdb
-
-# model
-*.pth
-*.onnx
-
-
+[Bb]uild
+out
+.cache
+.vs
+conan_imports_manifest.txt
+conan.lock
+conanbuildinfo.txt
+conaninfo.txt
+graph_info.json
